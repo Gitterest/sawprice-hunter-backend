@@ -9,7 +9,10 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://chainsaw-price-hunter-production.up.railway.app'
+}));
+
 app.use(express.json());
 
 // ✅ Connect to MongoDB
