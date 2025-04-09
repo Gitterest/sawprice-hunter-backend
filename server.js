@@ -1,8 +1,8 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import mongoose from "mongoose";
-import scraper from "./scraper.js";
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const mongoose = require("mongoose");
+const scraper = require("./scraper");
 
 dotenv.config();
 
@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 5000;
 
 // ✅ CORS config
 const allowedOrigins = [
-  "https://chainsaw-price-hunter-production.up.railway.app", // your frontend domain
+  "https://chainsaw-price-hunter-production.up.railway.app"
 ];
 
 app.use(cors({
@@ -26,7 +26,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ API route
 app.get("/api/prices", async (req, res) => {
   const { query } = req.query;
 
@@ -43,7 +42,6 @@ app.get("/api/prices", async (req, res) => {
   }
 });
 
-// ✅ MongoDB connect
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
