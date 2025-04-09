@@ -1,17 +1,17 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const scraper = require('./scraper');
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+import scraper from "./scraper.js";
 
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration
+// ✅ CORS config
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://chainsaw-price-hunter-production.up.railway.app'
+  "https://chainsaw-price-hunter-production.up.railway.app", // your frontend domain
 ];
 
 app.use(cors({
@@ -19,33 +19,37 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error("Not allowed by CORS"));
     }
   }
 }));
 
 app.use(express.json());
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch((error) => console.error('MongoDB connection error:', error));
-
-// Scraper API route
-app.get('/api/prices', async (req, res) => {
+// ✅ API route
+app.get("/api/prices", async (req, res) => {
   const { query } = req.query;
+
+  if (!query) {
+    return res.status(400).json({ error: "Missing search query." });
+  }
+
   try {
     const results = await scraper(query);
-    res.status(200).json(results);
-  } catch (err) {
-    console.error('Scraping error:', err);
-    res.status(500).json({ error: 'Scraping failed' });
+    res.json(results);
+  } catch (error) {
+    console.error("Scraping error:", error);
+    res.status(500).json({ error: "Internal server error." });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// ✅ MongoDB connect
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log("✅ Connected to MongoDB");
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  })
+  .catch((error) => {
+    console.error("❌ MongoDB connection error:", error);
+  });
