@@ -9,8 +9,11 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ✅ Updated CORS configuration
 app.use(cors({
-  origin: 'https://chainsaw-price-hunter-production.up.railway.app'
+  origin: 'https://chainsaw-price-hunter-production.up.railway.app',
+  methods: ['GET', 'POST'],
+  credentials: true
 }));
 
 app.use(express.json());
@@ -62,8 +65,7 @@ app.get("/api/prices", async (req, res) => {
   if (!query) return res.status(400).json({ error: "Search query is required" });
 
   try {
-    // Save search to DB if needed
-    // await new Search({ query }).save();
+    // await new Search({ query }).save(); // optional DB logging
 
     const results = await Promise.allSettled([
       scrapeFacebookMarketplace(query),
