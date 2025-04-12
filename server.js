@@ -24,7 +24,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ Scraper API endpoint
+// ✅ API endpoint for scraping
 app.get("/api/prices", async (req, res) => {
   const { query } = req.query;
 
@@ -41,7 +41,7 @@ app.get("/api/prices", async (req, res) => {
   }
 });
 
-// ✅ Connect to MongoDB if needed (optional)
+// ✅ Connect to MongoDB first, then start server
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
