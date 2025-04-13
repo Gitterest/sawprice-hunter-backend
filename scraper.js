@@ -10,8 +10,13 @@ const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 async function scrapeFacebookMarketplace(searchQuery) {
   console.log("🧠 Scraping Facebook Marketplace with query:", searchQuery);
 
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
+const browser = await puppeteer.launch({
+  headless: true,
+  args: ['--no-sandbox', '--disable-setuid-sandbox']
+});
+
+const page = await browser.newPage();
+
 
   // ✅ Use mobile user-agent & viewport to avoid redirect
   await page.setUserAgent(
