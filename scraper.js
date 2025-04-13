@@ -2,147 +2,130 @@ const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 puppeteer.use(StealthPlugin());
 
-const defaultLaunchOptions = {
+const launchOptions = {
   headless: true,
   args: ["--no-sandbox", "--disable-setuid-sandbox"],
 };
 
 async function scrapeFacebook(query) {
+  const browser = await puppeteer.launch(launchOptions);
+  const page = await browser.newPage();
   try {
-    const browser = await puppeteer.launch(defaultLaunchOptions);
-    const page = await browser.newPage();
-
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
     );
-    await page.setViewport({ width: 1280, height: 800 });
-
     const url = `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`;
-    console.log("🔵 Scraping Facebook:", url);
+    console.log("🌐 Facebook URL:", url);
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-    const items = await page.evaluate(() => {
-      try {
-        const cards = Array.from(document.querySelectorAll('[role="article"]'));
-        return cards.map((card) => {
-          const title = card.innerText || 'Untitled';
-          const priceMatch = title.match(/\$\d[\d,.]*/);
-          const price = priceMatch ? priceMatch[0] : '';
-          const image = card.querySelector('img')?.src || '';
-          const link = card.querySelector('a')?.href || '';
-          return { title, price, image, link, source: "Facebook Marketplace" };
-        });
-      } catch (err) {
-        console.error("❌ Facebook evaluate error:", err.message);
-        return [];
-      }
+    await page.waitForSelector('[role="article"]', { timeout: 10000 });
+
+    const results = await page.evaluate(() => {
+      const items = Array.from(document.querySelectorAll('[role="article"]'));
+      return items.map((el) => {
+        const title = el.innerText || "";
+        const priceMatch = title.match(/\$\d[\d,\.]*/);
+        const price = priceMatch ? priceMatch[0] : "";
+        const image = el.querySelector("img")?.src || "";
+        const link = el.querySelector("a")?.href || "";
+        return { title, price, image, link, source: "Facebook Marketplace" };
+      });
     });
 
-    await browser.close();
-    console.log(`✅ Facebook scraped ${items.length} items`);
-    return items;
+    console.log("✅ Facebook scraped:", results.length);
+    return results;
   } catch (err) {
-    console.error("❌ Facebook failed:", err.message);
+    console.error("❌ Facebook scrape error:", err.message);
     return [];
+  } finally {
+    await browser.close();
   }
 }
 
 async function scrapeOfferUp(query) {
+  const browser = await puppeteer.launch(launchOptions);
+  const page = await browser.newPage();
   try {
-    const browser = await puppeteer.launch(defaultLaunchOptions);
-    const page = await browser.newPage();
-
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
     );
-    await page.setViewport({ width: 1280, height: 800 });
-
     const url = `https://offerup.com/search/?q=${encodeURIComponent(query)}`;
-    console.log("🟢 Scraping OfferUp:", url);
+    console.log("🌐 OfferUp URL:", url);
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-    const items = await page.evaluate(() => {
-      try {
-        const elements = Array.from(document.querySelectorAll("a[href*='/item/detail/']"));
-        return elements.map((el) => {
-          const title = el.querySelector("h2")?.innerText || "No title";
-          const priceMatch = el.innerText.match(/\$\d[\d,.]*/);
-          const price = priceMatch ? priceMatch[0] : "";
-          const image = el.querySelector("img")?.src || "";
-          const link = "https://offerup.com" + el.getAttribute("href");
-          return { title, price, image, link, source: "OfferUp" };
-        });
-      } catch (err) {
-        console.error("❌ OfferUp evaluate error:", err.message);
-        return [];
-      }
+    await page.waitForSelector("a[href*='/item/detail/']", { timeout: 10000 });
+
+    const results = await page.evaluate(() => {
+      const items = Array.from(document.querySelectorAll("a[href*='/item/detail/']"));
+      return items.map((el) => {
+        const title = el.querySelector("h2")?.innerText || "";
+        const priceMatch = el.innerText.match(/\$\d[\d,\.]*/);
+        const price = priceMatch ? priceMatch[0] : "";
+        const image = el.querySelector("img")?.src || "";
+        const link = "https://offerup.com" + el.getAttribute("href");
+        return { title, price, image, link, source: "OfferUp" };
+      });
     });
 
-    await browser.close();
-    console.log(`✅ OfferUp scraped ${items.length} items`);
-    return items;
+    console.log("✅ OfferUp scraped:", results.length);
+    return results;
   } catch (err) {
-    console.error("❌ OfferUp failed:", err.message);
+    console.error("❌ OfferUp scrape error:", err.message);
     return [];
+  } finally {
+    await browser.close();
   }
 }
 
 async function scrapeMercari(query) {
+  const browser = await puppeteer.launch(launchOptions);
+  const page = await browser.newPage();
   try {
-    const browser = await puppeteer.launch(defaultLaunchOptions);
-    const page = await browser.newPage();
-
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
     );
-    await page.setViewport({ width: 1280, height: 800 });
-
     const url = `https://www.mercari.com/search/?keyword=${encodeURIComponent(query)}`;
-    console.log("🟣 Scraping Mercari:", url);
+    console.log("🌐 Mercari URL:", url);
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-    const items = await page.evaluate(() => {
-      try {
-        const cards = Array.from(document.querySelectorAll('li[data-testid="item-cell"]'));
-        return cards.map((card) => {
-          const title = card.querySelector("p")?.innerText || "No title";
-          const priceMatch = card.innerText.match(/\$\d[\d,.]*/);
-          const price = priceMatch ? priceMatch[0] : "";
-          const image = card.querySelector("img")?.src || "";
-          const linkPath = card.querySelector("a")?.getAttribute("href") || "";
-          const link = `https://www.mercari.com${linkPath}`;
-          return { title, price, image, link, source: "Mercari" };
-        });
-      } catch (err) {
-        console.error("❌ Mercari evaluate error:", err.message);
-        return [];
-      }
+    await page.waitForSelector('li[data-testid="item-cell"]', { timeout: 10000 });
+
+    const results = await page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll('li[data-testid="item-cell"]'));
+      return cards.map((card) => {
+        const title = card.querySelector("p")?.innerText || "";
+        const priceMatch = card.innerText.match(/\$\d[\d,\.]*/);
+        const price = priceMatch ? priceMatch[0] : "";
+        const image = card.querySelector("img")?.src || "";
+        const linkPath = card.querySelector("a")?.href || "";
+        return { title, price, image, link: linkPath, source: "Mercari" };
+      });
     });
 
-    await browser.close();
-    console.log(`✅ Mercari scraped ${items.length} items`);
-    return items;
+    console.log("✅ Mercari scraped:", results.length);
+    return results;
   } catch (err) {
-    console.error("❌ Mercari failed:", err.message);
+    console.error("❌ Mercari scrape error:", err.message);
     return [];
+  } finally {
+    await browser.close();
   }
 }
 
 async function scrapePrices(query) {
-  console.log("🔍 Scraping initiated for:", query);
-
-  const results = await Promise.allSettled([
+  console.log("🟡 Scraping for:", query);
+  const allResults = await Promise.allSettled([
     scrapeFacebook(query),
     scrapeOfferUp(query),
     scrapeMercari(query),
   ]);
 
-  const final = results
-    .filter(r => r.status === "fulfilled")
-    .flatMap(r => r.value || []);
+  const results = allResults
+    .filter((res) => res.status === "fulfilled")
+    .flatMap((res) => res.value || []);
 
-  console.log(`📦 Total results combined: ${final.length}`);
-  return final;
+  console.log(`📦 Total results: ${results.length}`);
+  return results;
 }
 
 module.exports = { scrapePrices };
