@@ -18,19 +18,19 @@ async function scrapeFacebook(query) {
     await page.setViewport({ width: 1280, height: 800 });
 
     const url = `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`;
-    console.log("🟦 Scraping Facebook:", url);
+    console.log("🔵 Scraping Facebook:", url);
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
     const items = await page.evaluate(() => {
       try {
-        const listings = Array.from(document.querySelectorAll('[role="article"]'));
-        return listings.map(item => {
-          const title = item.innerText || 'No title';
+        const cards = Array.from(document.querySelectorAll('[role="article"]'));
+        return cards.map((card) => {
+          const title = card.innerText || 'Untitled';
           const priceMatch = title.match(/\$\d[\d,.]*/);
           const price = priceMatch ? priceMatch[0] : '';
-          const image = item.querySelector('img')?.src || '';
-          const link = item.querySelector('a')?.href || '';
-          return { title, price, image, link, source: 'Facebook Marketplace' };
+          const image = card.querySelector('img')?.src || '';
+          const link = card.querySelector('a')?.href || '';
+          return { title, price, image, link, source: "Facebook Marketplace" };
         });
       } catch (err) {
         console.error("❌ Facebook evaluate error:", err.message);
@@ -39,10 +39,10 @@ async function scrapeFacebook(query) {
     });
 
     await browser.close();
-    console.log(`✅ Facebook results: ${items.length}`);
+    console.log(`✅ Facebook scraped ${items.length} items`);
     return items;
   } catch (err) {
-    console.error("❌ Facebook scrape failed:", err.message);
+    console.error("❌ Facebook failed:", err.message);
     return [];
   }
 }
@@ -58,18 +58,18 @@ async function scrapeOfferUp(query) {
     await page.setViewport({ width: 1280, height: 800 });
 
     const url = `https://offerup.com/search/?q=${encodeURIComponent(query)}`;
-    console.log("🟩 Scraping OfferUp:", url);
+    console.log("🟢 Scraping OfferUp:", url);
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
     const items = await page.evaluate(() => {
       try {
-        const listings = Array.from(document.querySelectorAll("a[href*='/item/detail/']"));
-        return listings.map(item => {
-          const title = item.querySelector("h2")?.innerText || "No title";
-          const priceMatch = item.innerText.match(/\$\d[\d,.]*/);
+        const elements = Array.from(document.querySelectorAll("a[href*='/item/detail/']"));
+        return elements.map((el) => {
+          const title = el.querySelector("h2")?.innerText || "No title";
+          const priceMatch = el.innerText.match(/\$\d[\d,.]*/);
           const price = priceMatch ? priceMatch[0] : "";
-          const image = item.querySelector("img")?.src || "";
-          const link = `https://offerup.com${item.getAttribute("href")}`;
+          const image = el.querySelector("img")?.src || "";
+          const link = "https://offerup.com" + el.getAttribute("href");
           return { title, price, image, link, source: "OfferUp" };
         });
       } catch (err) {
@@ -79,10 +79,10 @@ async function scrapeOfferUp(query) {
     });
 
     await browser.close();
-    console.log(`✅ OfferUp results: ${items.length}`);
+    console.log(`✅ OfferUp scraped ${items.length} items`);
     return items;
   } catch (err) {
-    console.error("❌ OfferUp scrape failed:", err.message);
+    console.error("❌ OfferUp failed:", err.message);
     return [];
   }
 }
@@ -98,18 +98,18 @@ async function scrapeMercari(query) {
     await page.setViewport({ width: 1280, height: 800 });
 
     const url = `https://www.mercari.com/search/?keyword=${encodeURIComponent(query)}`;
-    console.log("🟪 Scraping Mercari:", url);
+    console.log("🟣 Scraping Mercari:", url);
     await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
     const items = await page.evaluate(() => {
       try {
-        const listings = Array.from(document.querySelectorAll('li[data-testid="item-cell"]'));
-        return listings.map(item => {
-          const title = item.querySelector('p')?.innerText || 'No title';
-          const priceMatch = item.innerText.match(/\$\d[\d,.]*/);
-          const price = priceMatch ? priceMatch[0] : '';
-          const image = item.querySelector("img")?.src || "";
-          const linkPath = item.querySelector("a")?.getAttribute("href") || "";
+        const cards = Array.from(document.querySelectorAll('li[data-testid="item-cell"]'));
+        return cards.map((card) => {
+          const title = card.querySelector("p")?.innerText || "No title";
+          const priceMatch = card.innerText.match(/\$\d[\d,.]*/);
+          const price = priceMatch ? priceMatch[0] : "";
+          const image = card.querySelector("img")?.src || "";
+          const linkPath = card.querySelector("a")?.getAttribute("href") || "";
           const link = `https://www.mercari.com${linkPath}`;
           return { title, price, image, link, source: "Mercari" };
         });
@@ -120,29 +120,29 @@ async function scrapeMercari(query) {
     });
 
     await browser.close();
-    console.log(`✅ Mercari results: ${items.length}`);
+    console.log(`✅ Mercari scraped ${items.length} items`);
     return items;
   } catch (err) {
-    console.error("❌ Mercari scrape failed:", err.message);
+    console.error("❌ Mercari failed:", err.message);
     return [];
   }
 }
 
 async function scrapePrices(query) {
-  console.log("🔍 Starting scrape for:", query);
+  console.log("🔍 Scraping initiated for:", query);
 
-  const sources = await Promise.allSettled([
+  const results = await Promise.allSettled([
     scrapeFacebook(query),
     scrapeOfferUp(query),
     scrapeMercari(query),
   ]);
 
-  const results = sources
+  const final = results
     .filter(r => r.status === "fulfilled")
     .flatMap(r => r.value || []);
 
-  console.log(`📦 Total combined results: ${results.length}`);
-  return results;
+  console.log(`📦 Total results combined: ${final.length}`);
+  return final;
 }
 
 module.exports = { scrapePrices };
