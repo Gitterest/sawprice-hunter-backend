@@ -11,11 +11,22 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ✅ CORS Setup (Allow frontend domain)
+const allowedOrigins = [
+  'http://localhost:3000/',
+  'https://chainsaw-price-hunter-production.up.railway.app/'
+];
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "*",
-  methods: ["GET", "POST"],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("❌ Not allowed by CORS"));
+    }
+  },
   credentials: true,
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
 
@@ -62,7 +73,7 @@ const {
 
 // ✅ Main API Route
 app.get("/api/prices", async (req, res) => {
-  const { query } = req.query;
+  const { query, state } = req.query;
   if (!query) return res.status(400).json({ error: "Search query is required" });
 
   try {
@@ -74,15 +85,36 @@ app.get("/api/prices", async (req, res) => {
       scrapeMercari(query),
     ]);
 
-    const combinedResults = results
+    let combinedResults = results
       .filter((r) => r.status === "fulfilled")
       .flatMap((r) => r.value);
+
+    // Helper: Extract state abbreviation from a string
+    const extractState = (text) => {
+      const match = text?.match(/,\s*([A-Z]{2})(\\s|$)/);
+      return match ? match[1].toUpperCase() : '';
+    };
+
+    // Normalize state into listings (if not already present)
+    combinedResults = combinedResults.map(item => {
+      if (!item.state && item.location) {
+        item.state = extractState(item.location);
+      }
+      return item;
+    });
+
+    // Filter by state if provided
+    if (state) {
+      combinedResults = combinedResults.filter(item =>
+        item.state && item.state.toUpperCase() === state.toUpperCase()
+      );
+    }
 
     if (combinedResults.length === 0) {
       return res.status(404).json({ error: "No results found" });
     }
 
-    console.log("🧪 Combined Results:", combinedResults.length);
+    console.log("🧪 Final Results:", combinedResults.length);
     res.json(combinedResults);
   } catch (err) {
     console.error("🔥 Scraping error:", err.message || err);
