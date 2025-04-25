@@ -1,19 +1,18 @@
+// scraper.js - Final Working Version with Clean Debugging & Mobile Emulation
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
-
 puppeteer.use(StealthPlugin());
 
 const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
-// 🔍 Facebook Marketplace (✅ Updated with mobile emulation)
+// 🔍 Facebook Marketplace Scraper
 async function scrapeFacebookMarketplace(searchQuery) {
   console.log("🧠 Scraping Facebook Marketplace with query:", searchQuery);
 
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
-  // ✅ Use mobile user-agent & viewport to avoid redirect
   await page.setUserAgent(
     'Mozilla/5.0 (iPhone; CPU iPhone OS 13_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Mobile/15E148 Safari/604.1'
   );
@@ -26,7 +25,7 @@ async function scrapeFacebookMarketplace(searchQuery) {
     await delay(3000);
 
     const html = await page.content();
-    console.log("🧾 Facebook raw HTML:", html.slice(0, 500));
+    fs.writeFileSync('debug-facebook.html', html);
 
     const results = await page.evaluate(() => {
       const items = [];
@@ -36,7 +35,7 @@ async function scrapeFacebookMarketplace(searchQuery) {
         const image = item.querySelector("img")?.src || "";
 
         if (title && link) {
-          items.push({ title, link, image });
+          items.push({ title, link, image, source: 'facebook' });
         }
       });
       return items;
@@ -51,7 +50,7 @@ async function scrapeFacebookMarketplace(searchQuery) {
   }
 }
 
-// 🔍 OfferUp (Mobile-like Strategy)
+// 🔍 OfferUp Scraper
 async function scrapeOfferUp(searchQuery) {
   console.log('🧠 Scraping OfferUp with query:', searchQuery);
 
@@ -62,7 +61,7 @@ async function scrapeOfferUp(searchQuery) {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
   );
 
-  await page.setJavaScriptEnabled(false); // Avoid JS-blocked content
+  await page.setJavaScriptEnabled(false); // Avoid JS-based content when possible
 
   const url = `https://offerup.com/search/?q=${encodeURIComponent(searchQuery)}`;
 
@@ -71,7 +70,7 @@ async function scrapeOfferUp(searchQuery) {
     await delay(3000);
 
     const html = await page.content();
-    console.log("📄 OfferUp raw HTML:", html.slice(0, 500));
+    fs.writeFileSync('debug-offerup.html', html);
 
     const results = await page.evaluate(() => {
       const items = [];
@@ -82,7 +81,7 @@ async function scrapeOfferUp(searchQuery) {
         const link = 'https://offerup.com' + item.getAttribute('href');
 
         if (title && link) {
-          items.push({ title, price, link, image });
+          items.push({ title, price, link, image, source: 'offerup' });
         }
       });
       return items;
@@ -97,14 +96,13 @@ async function scrapeOfferUp(searchQuery) {
   }
 }
 
-// 🔍 Mercari (✅ Updated using Facebook-style strategy)
+// 🔍 Mercari Scraper
 async function scrapeMercari(searchQuery) {
   console.log("🧠 Scraping Mercari with query:", searchQuery);
 
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
-  // ✅ Emulate mobile just like Facebook scraper
   await page.setUserAgent(
     "Mozilla/5.0 (iPhone; CPU iPhone OS 13_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Mobile/15E148 Safari/604.1"
   );
@@ -114,10 +112,10 @@ async function scrapeMercari(searchQuery) {
 
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await delay(4000); // Give React time to load
+    await delay(4000);
 
     const html = await page.content();
-    console.log("📄 Mercari raw HTML:", html.slice(0, 500));
+    fs.writeFileSync('debug-mercari.html', html);
 
     const results = await page.evaluate(() => {
       const items = [];
@@ -129,12 +127,7 @@ async function scrapeMercari(searchQuery) {
         const image = item.querySelector('img')?.src || "";
 
         if (title && price && link) {
-          items.push({
-            title,
-            price,
-            link,
-            image,
-          });
+          items.push({ title, price, link, image, source: 'mercari' });
         }
       });
 
@@ -149,8 +142,6 @@ async function scrapeMercari(searchQuery) {
     return [];
   }
 }
-
-
 
 // ✅ Export all scrapers
 module.exports = {

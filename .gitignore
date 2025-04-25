@@ -1,0 +1,21 @@
+# Node.js
+node_modules/
+.env
+npm-debug.log*
+package-lock.json
+fb-session/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# Railway or Nixpacks
+.nixpacks/
