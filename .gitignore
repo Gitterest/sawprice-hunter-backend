@@ -19,3 +19,4 @@ Thumbs.db
 
 # Railway or Nixpacks
 .nixpacks/
+".env" 
