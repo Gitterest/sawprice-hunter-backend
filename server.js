@@ -12,8 +12,8 @@ const PORT = process.env.PORT || 5000;
 
 // ✅ CORS Setup (Allow frontend domain)
 const allowedOrigins = [
-  'http://localhost:3000/',
-  'https://chainsaw-price-hunter-production.up.railway.app/'
+  'http://localhost:3000',
+  'https://chainsaw-price-hunter-production.up.railway.app'
 ];
 
 const corsOptions = {
@@ -28,6 +28,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // ✅ MongoDB Connection
@@ -89,13 +90,11 @@ app.get("/api/prices", async (req, res) => {
       .filter((r) => r.status === "fulfilled")
       .flatMap((r) => r.value);
 
-    // Helper: Extract state abbreviation from a string
     const extractState = (text) => {
-      const match = text?.match(/,\s*([A-Z]{2})(\\s|$)/);
+      const match = text?.match(/,\s*([A-Z]{2})(\s|$)/);
       return match ? match[1].toUpperCase() : '';
     };
 
-    // Normalize state into listings (if not already present)
     combinedResults = combinedResults.map(item => {
       if (!item.state && item.location) {
         item.state = extractState(item.location);
@@ -103,7 +102,6 @@ app.get("/api/prices", async (req, res) => {
       return item;
     });
 
-    // Filter by state if provided
     if (state) {
       combinedResults = combinedResults.filter(item =>
         item.state && item.state.toUpperCase() === state.toUpperCase()
