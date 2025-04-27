@@ -1,4 +1,4 @@
-// scraper.js - BULLETPROOF GOD-TIER VERSION
+// scraper.js - FULLY FUNCTIONAL NORMAL VERSION
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
@@ -27,18 +27,20 @@ const launchBrowser = async () => {
   return await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    protocolTimeout: 120000, // Bulletproof: Increase protocol timeout
-    timeout: 120000,
+    protocolTimeout: 60000, // Normal patience
+    timeout: 60000,
   });
 };
 
 const safeGoto = async (page, url) => {
   try {
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 120000 });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.waitForTimeout(5000); // Let the page settle
   } catch (err) {
     console.warn('🔁 Retry page.goto:', url);
+    await page.waitForTimeout(3000);
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
     await page.waitForTimeout(5000);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 120000 });
   }
 };
 
@@ -54,8 +56,8 @@ const scrapeFacebookMarketplace = async (query, cityState) => {
     const searchUrl = `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`;
     await safeGoto(page, searchUrl);
 
+    await page.waitForSelector('[role="article"]', { timeout: 60000 });
     await autoScroll(page);
-    await page.waitForSelector('[role="article"]', { timeout: 120000 });
 
     const data = await page.evaluate((cityState) => {
       const results = [];
@@ -82,7 +84,7 @@ const scrapeFacebookMarketplace = async (query, cityState) => {
 
     listings.push(...data);
   } catch (error) {
-    console.error('❌ Facebook Scraper error:', error);
+    console.error('❌ Facebook Scraper error:', error.message);
   } finally {
     await browser.close();
   }
@@ -100,6 +102,7 @@ const scrapeOfferUp = async (query, cityState) => {
   try {
     const offerupUrl = `https://offerup.com/search/?q=${encodeURIComponent(query)}&location=${encodeURIComponent(cityState)}`;
     await safeGoto(page, offerupUrl);
+    await page.waitForSelector('li[data-testid="item-tile"]', { timeout: 60000 });
     await autoScroll(page);
 
     const data = await page.evaluate(() => {
@@ -127,7 +130,7 @@ const scrapeOfferUp = async (query, cityState) => {
 
     listings.push(...data);
   } catch (error) {
-    console.error('❌ OfferUp Scraper error:', error);
+    console.error('❌ OfferUp Scraper error:', error.message);
   } finally {
     await browser.close();
   }
@@ -145,6 +148,7 @@ const scrapeMercari = async (query, cityState) => {
   try {
     const mercariUrl = `https://www.mercari.com/search/?keyword=${encodeURIComponent(query)}`;
     await safeGoto(page, mercariUrl);
+    await page.waitForSelector('li[data-testid="ItemCell"]', { timeout: 60000 });
     await autoScroll(page);
 
     const data = await page.evaluate((cityState) => {
@@ -172,7 +176,7 @@ const scrapeMercari = async (query, cityState) => {
 
     listings.push(...data);
   } catch (error) {
-    console.error('❌ Mercari Scraper error:', error);
+    console.error('❌ Mercari Scraper error:', error.message);
   } finally {
     await browser.close();
   }
