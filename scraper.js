@@ -10,7 +10,10 @@ const extractState = (text) => {
 const scrapeFacebookMarketplace = async (query) => {
   try {
     const url = `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`;
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({
+         headless: true,
+         args: ['--no-sandbox', '--disable-setuid-sandbox'],
+         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, });
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "networkidle2" });
     await page.waitForTimeout(3000);
