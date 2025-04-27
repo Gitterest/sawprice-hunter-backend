@@ -1,5 +1,4 @@
-// 📦 scraper.js - Full production-ready version for Railway backend
-
+// scraper.js - GOD TIER VERSION
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
@@ -9,149 +8,162 @@ puppeteer.use(StealthPlugin());
 
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-// 🔍 Scrape Facebook Marketplace with cookie support
-async function scrapeFacebookMarketplace(searchQuery) {
-  console.log("🧠 Scraping Facebook Marketplace with query:", searchQuery);
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+const autoScroll = async (page) => {
+  await page.evaluate(async () => {
+    await new Promise((resolve) => {
+      let totalHeight = 0;
+      const distance = 100;
+      const timer = setInterval(() => {
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+        if (totalHeight >= document.body.scrollHeight) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 200);
+    });
   });
+};
+
+const scrapeFacebookMarketplace = async (query, cityState) => {
+  const listings = [];
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
+  await page.setViewport({ width: 1280, height: 800 });
 
   try {
-    const cookiesPath = path.resolve(__dirname, 'fb-session', 'cookies.json');
-    try {
-      const cookiesString = await fs.readFile(cookiesPath);
-      const cookies = JSON.parse(cookiesString);
-      await page.setCookie(...cookies);
-      console.log("🍪 Loaded Facebook cookies");
-    } catch (err) {
-      console.warn("⚠️ No cookies found, scraping anonymously");
-    }
+    await page.goto('https://www.facebook.com/marketplace/', { waitUntil: 'networkidle2', timeout: 90000 });
+    const searchUrl = `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`;
+    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 90000 });
+    await autoScroll(page);
+    await page.waitForSelector('[role="article"]', { timeout: 90000 });
 
-    await page.setUserAgent(
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 13_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Mobile/15E148 Safari/604.1'
-    );
-    await page.setViewport({ width: 375, height: 812 });
+    const data = await page.evaluate((cityState) => {
+      const results = [];
+      const articles = document.querySelectorAll('[role="article"]');
+      articles.forEach(article => {
+        const title = article.querySelector('span')?.innerText || '';
+        const price = article.querySelector('span span')?.innerText || '';
+        const url = article.querySelector('a')?.href || '';
+        const image = article.querySelector('img')?.src || '';
+        const locationText = article.innerText.toLowerCase();
 
-    const url = `https://m.facebook.com/marketplace/search/?query=${encodeURIComponent(searchQuery)}`;
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await delay(3000);
-
-    const results = await page.evaluate(() => {
-      const items = [];
-      document.querySelectorAll("a[href*='/marketplace/item']").forEach((item) => {
-        const title = item.querySelector("strong")?.innerText || item.innerText || "No Title";
-        const link = item.href;
-        const image = item.querySelector("img")?.src || "";
-        if (title && link) items.push({ title, link, image });
+        if (title && price && url && locationText.includes(cityState.toLowerCase())) {
+          results.push({
+            title,
+            price,
+            url,
+            image,
+            location: locationText,
+          });
+        }
       });
-      return items;
-    });
+      return results;
+    }, cityState);
 
-    const newCookies = await page.cookies();
-    await fs.mkdir(path.dirname(cookiesPath), { recursive: true });
-    await fs.writeFile(cookiesPath, JSON.stringify(newCookies, null, 2));
-
-    console.log("📈 Facebook scrape success:", results.length, "items");
+    listings.push(...data);
+  } catch (error) {
+    console.error('❌ Facebook Scraper error:', error);
+  } finally {
     await browser.close();
-    return results;
-
-  } catch (err) {
-    console.error("❌ Facebook scraping error:", err);
-    await browser.close();
-    return [];
   }
-}
 
-// 🔍 Scrape OfferUp
-async function scrapeOfferUp(searchQuery) {
-  console.log("🧠 Scraping OfferUp with query:", searchQuery);
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  return listings;
+};
+
+const scrapeOfferUp = async (query, cityState) => {
+  const listings = [];
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
+  await page.setViewport({ width: 1280, height: 800 });
 
   try {
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    );
+    const offerupUrl = `https://offerup.com/search/?q=${encodeURIComponent(query)}&location=${encodeURIComponent(cityState)}`;
+    await page.goto(offerupUrl, { waitUntil: 'networkidle2', timeout: 90000 });
+    await autoScroll(page);
 
-    await page.setJavaScriptEnabled(false);
+    const data = await page.evaluate(() => {
+      const results = [];
+      const items = document.querySelectorAll('li[data-testid="item-tile"]');
+      items.forEach(item => {
+        const title = item.querySelector('p[data-testid="item-title"]')?.innerText || '';
+        const price = item.querySelector('span[data-testid="item-price"]')?.innerText || '';
+        const url = item.querySelector('a')?.href || '';
+        const image = item.querySelector('img')?.src || '';
+        const location = item.querySelector('p[data-testid="item-location"]')?.innerText || '';
 
-    const url = `https://offerup.com/search/?q=${encodeURIComponent(searchQuery)}`;
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await delay(3000);
-
-    const results = await page.evaluate(() => {
-      const items = [];
-      document.querySelectorAll('a[href^="/item"]').forEach((item) => {
-        const title = item.querySelector('h2')?.innerText || item.innerText || "No Title";
-        const image = item.querySelector('img')?.src || "";
-        const price = item.innerText.match(/\$\d+/)?.[0] || "No Price";
-        const link = 'https://offerup.com' + item.getAttribute('href');
-        if (title && link) items.push({ title, price, link, image });
+        if (title && price && url) {
+          results.push({
+            title,
+            price,
+            url: `https://offerup.com${url}`,
+            image,
+            location,
+          });
+        }
       });
-      return items;
+      return results;
     });
 
-    console.log("📈 OfferUp scrape success:", results.length, "items");
+    listings.push(...data);
+  } catch (error) {
+    console.error('❌ OfferUp Scraper error:', error);
+  } finally {
     await browser.close();
-    return results;
-
-  } catch (err) {
-    console.error("❌ OfferUp scraping error:", err);
-    await browser.close();
-    return [];
   }
-}
 
-// 🔍 Scrape Mercari
-async function scrapeMercari(searchQuery) {
-  console.log("🧠 Scraping Mercari with query:", searchQuery);
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  return listings;
+};
+
+const scrapeMercari = async (query, cityState) => {
+  const listings = [];
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
+  await page.setViewport({ width: 1280, height: 800 });
 
   try {
-    await page.setUserAgent(
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 13_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Mobile/15E148 Safari/604.1"
-    );
-    await page.setViewport({ width: 375, height: 812 });
+    const mercariUrl = `https://www.mercari.com/search/?keyword=${encodeURIComponent(query)}`;
+    await page.goto(mercariUrl, { waitUntil: 'networkidle2', timeout: 90000 });
+    await autoScroll(page);
 
-    const url = `https://www.mercari.com/search/?keyword=${encodeURIComponent(searchQuery)}`;
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await delay(4000);
+    const data = await page.evaluate((cityState) => {
+      const results = [];
+      const items = document.querySelectorAll('li[data-testid="ItemCell"]');
+      items.forEach(item => {
+        const title = item.querySelector('p')?.innerText || '';
+        const price = item.querySelector('div[data-testid="ItemPrice"]')?.innerText || '';
+        const url = item.querySelector('a')?.href || '';
+        const image = item.querySelector('img')?.src || '';
+        const location = item.querySelector('div[data-testid="ItemShippingArea"]')?.innerText || '';
 
-    const results = await page.evaluate(() => {
-      const items = [];
-      document.querySelectorAll('[data-testid="ItemCell"]').forEach((item) => {
-        const title = item.querySelector('p')?.innerText || "No Title";
-        const price = item.querySelector('[data-testid="Price"]')?.innerText || "No Price";
-        const link = item.querySelector('a')?.href || "#";
-        const image = item.querySelector('img')?.src || "";
-        if (title && price && link) items.push({ title, price, link, image });
+        if (title && price && url && location.toLowerCase().includes(cityState.toLowerCase())) {
+          results.push({
+            title,
+            price,
+            url: `https://www.mercari.com${url}`,
+            image,
+            location,
+          });
+        }
       });
-      return items;
-    });
+      return results;
+    }, cityState);
 
-    console.log("📈 Mercari scrape success:", results.length, "items");
+    listings.push(...data);
+  } catch (error) {
+    console.error('❌ Mercari Scraper error:', error);
+  } finally {
     await browser.close();
-    return results;
-
-  } catch (err) {
-    console.error("❌ Mercari scraping error:", err);
-    await browser.close();
-    return [];
   }
-}
 
-// ✅ Export all scrapers
+  return listings;
+};
+
 module.exports = {
   scrapeFacebookMarketplace,
   scrapeOfferUp,
-  scrapeMercari,
+  scrapeMercari
 };

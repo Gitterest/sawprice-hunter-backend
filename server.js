@@ -1,19 +1,23 @@
+// server.js - FINAL GOD TIER VERSION
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const { scrapeFacebookMarketplace, scrapeOfferUp, scrapeMercari } = require("./scraper");
+
 require("dotenv").config();
 
+// Initialize Express app
+const app = express();
+
+// Setup Puppeteer with Stealth
 puppeteer.use(StealthPlugin());
 
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// ✅ CORS Setup (Allow frontend domain)
+// Setup CORS properly for credentials
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://chainsaw-price-hunter-production.up.railway.app'
+  "http://localhost:3000",
+  "https://chainsaw-price-hunter-production.up.railway.app"
 ];
 
 const corsOptions = {
@@ -31,59 +35,37 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
 
-// ✅ MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  console.error("❌ Missing MONGO_URI in .env");
-  process.exit(1);
-}
-
-mongoose.connect(MONGO_URI, {
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-})
-.then(() => console.log("✅ MongoDB connected"))
-.catch((err) => {
-  console.error("❌ MongoDB connection error:", err.message);
-  process.exit(1);
-});
+}).then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
 
-// ✅ Mongoose Schemas
-const SearchSchema = new mongoose.Schema({
-  query: { type: String, required: true },
+// Setup basic model
+const searchSchema = new mongoose.Schema({
+  query: String,
+  city: String,
+  state: String,
   timestamp: { type: Date, default: Date.now },
 });
 
-const AlertSchema = new mongoose.Schema({
-  query: { type: String, required: true },
-  targetPrice: { type: Number, required: true },
-  email: { type: String, required: true },
-  timestamp: { type: Date, default: Date.now },
-});
+const Search = mongoose.model("Search", searchSchema);
 
-const Search = mongoose.model("Search", SearchSchema);
-const Alert = mongoose.model("Alert", AlertSchema);
-
-// ✅ Import Scrapers
-const {
-  scrapeFacebookMarketplace,
-  scrapeOfferUp,
-  scrapeMercari,
-} = require("./scraper");
-
-// ✅ Main API Route
+// API Route - Scrape prices
 app.get("/api/prices", async (req, res) => {
-  const { query, state } = req.query;
+  const { query, city, state } = req.query;
   if (!query) return res.status(400).json({ error: "Search query is required" });
 
   try {
-    await new Search({ query }).save();
+    await new Search({ query, city, state }).save();
+
+    const cityState = city && state ? `${city} ${state}` : (state || "US");
 
     const results = await Promise.allSettled([
-      scrapeFacebookMarketplace(query),
-      scrapeOfferUp(query),
-      scrapeMercari(query),
+      scrapeFacebookMarketplace(query, cityState),
+      scrapeOfferUp(query, cityState),
+      scrapeMercari(query, cityState),
     ]);
 
     let combinedResults = results
@@ -120,12 +102,11 @@ app.get("/api/prices", async (req, res) => {
   }
 });
 
-// ✅ Root route
+// Root route
 app.get("/", (req, res) => {
-  res.status(200).send("✅ Sawprice Hunter backend is running");
+  res.status(200).send("✅ Welcome to Sawprice Hunter!");
 });
 
-// ✅ Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server is live at http://localhost:${PORT}`);
-});
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
