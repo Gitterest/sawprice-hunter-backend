@@ -1,4 +1,4 @@
-// scraper.js - FULLY FUNCTIONAL NORMAL VERSION
+// scraper.js - FULLY CORRECT WAIT PATCHED VERSION
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
@@ -23,11 +23,13 @@ const autoScroll = async (page) => {
   });
 };
 
+const waitFor = async (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 const launchBrowser = async () => {
   return await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    protocolTimeout: 60000, // Normal patience
+    protocolTimeout: 60000,
     timeout: 60000,
   });
 };
@@ -35,12 +37,12 @@ const launchBrowser = async () => {
 const safeGoto = async (page, url) => {
   try {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.waitForTimeout(5000); // Let the page settle
+    await waitFor(5000);
   } catch (err) {
     console.warn('🔁 Retry page.goto:', url);
-    await page.waitForTimeout(3000);
+    await waitFor(3000);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.waitForTimeout(5000);
+    await waitFor(5000);
   }
 };
 
