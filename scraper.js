@@ -1,12 +1,10 @@
-// scraper.js - GOD TIER VERSION
+// scraper.js - BULLETPROOF GOD-TIER VERSION
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
 const path = require('path');
 
 puppeteer.use(StealthPlugin());
-
-const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
 const autoScroll = async (page) => {
   await page.evaluate(async () => {
@@ -25,19 +23,39 @@ const autoScroll = async (page) => {
   });
 };
 
+const launchBrowser = async () => {
+  return await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    protocolTimeout: 120000, // Bulletproof: Increase protocol timeout
+    timeout: 120000,
+  });
+};
+
+const safeGoto = async (page, url) => {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 120000 });
+  } catch (err) {
+    console.warn('🔁 Retry page.goto:', url);
+    await page.waitForTimeout(5000);
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 120000 });
+  }
+};
+
 const scrapeFacebookMarketplace = async (query, cityState) => {
   const listings = [];
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const browser = await launchBrowser();
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
   await page.setViewport({ width: 1280, height: 800 });
 
   try {
-    await page.goto('https://www.facebook.com/marketplace/', { waitUntil: 'networkidle2', timeout: 90000 });
+    await safeGoto(page, 'https://www.facebook.com/marketplace/');
     const searchUrl = `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`;
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 90000 });
+    await safeGoto(page, searchUrl);
+
     await autoScroll(page);
-    await page.waitForSelector('[role="article"]', { timeout: 90000 });
+    await page.waitForSelector('[role="article"]', { timeout: 120000 });
 
     const data = await page.evaluate((cityState) => {
       const results = [];
@@ -74,14 +92,14 @@ const scrapeFacebookMarketplace = async (query, cityState) => {
 
 const scrapeOfferUp = async (query, cityState) => {
   const listings = [];
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const browser = await launchBrowser();
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
   await page.setViewport({ width: 1280, height: 800 });
 
   try {
     const offerupUrl = `https://offerup.com/search/?q=${encodeURIComponent(query)}&location=${encodeURIComponent(cityState)}`;
-    await page.goto(offerupUrl, { waitUntil: 'networkidle2', timeout: 90000 });
+    await safeGoto(page, offerupUrl);
     await autoScroll(page);
 
     const data = await page.evaluate(() => {
@@ -119,14 +137,14 @@ const scrapeOfferUp = async (query, cityState) => {
 
 const scrapeMercari = async (query, cityState) => {
   const listings = [];
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const browser = await launchBrowser();
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
   await page.setViewport({ width: 1280, height: 800 });
 
   try {
     const mercariUrl = `https://www.mercari.com/search/?keyword=${encodeURIComponent(query)}`;
-    await page.goto(mercariUrl, { waitUntil: 'networkidle2', timeout: 90000 });
+    await safeGoto(page, mercariUrl);
     await autoScroll(page);
 
     const data = await page.evaluate((cityState) => {
