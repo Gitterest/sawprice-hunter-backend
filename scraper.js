@@ -1,4 +1,4 @@
-// scraper.js - FULLY CORRECT WAIT PATCHED VERSION
+// scraper.js - FINAL STEALTH MOBILE PATCHED VERSION
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
@@ -25,7 +25,20 @@ const waitFor = async (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const launchBrowser = async () => {
   return await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--window-size=375,812'
+    ],
+    defaultViewport: {
+      width: 375,
+      height: 812,
+      isMobile: true,
+      hasTouch: true
+    },
     protocolTimeout: 60000,
     timeout: 60000,
   });
@@ -47,20 +60,19 @@ const scrapeFacebookMarketplace = async (query, cityState) => {
   const listings = [];
   const browser = await launchBrowser();
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
-  await page.setViewport({ width: 1280, height: 800 });
+  await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A5341f Safari/604.1');
 
   try {
     await safeGoto(page, 'https://www.facebook.com/marketplace/');
     const searchUrl = `https://www.facebook.com/marketplace/search/?query=${encodeURIComponent(query)}`;
     await safeGoto(page, searchUrl);
 
-    await page.waitForSelector('[role="article"]', { timeout: 60000 });
+    await page.waitForSelector('div[class*="x1i10hfl"]', { timeout: 60000 });
     await autoScroll(page);
 
     const data = await page.evaluate((cityState) => {
       const results = [];
-      const articles = document.querySelectorAll('[role="article"]');
+      const articles = document.querySelectorAll('div[class*="x1i10hfl"]');
       articles.forEach(article => {
         const title = article.querySelector('span')?.innerText || '';
         const price = article.querySelector('span span')?.innerText || '';
@@ -95,30 +107,29 @@ const scrapeOfferUp = async (query, cityState) => {
   const listings = [];
   const browser = await launchBrowser();
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
-  await page.setViewport({ width: 1280, height: 800 });
+  await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A5341f Safari/604.1');
 
   try {
-    const offerupUrl = `https://offerup.com/search/?q=${encodeURIComponent(query)}&location=${encodeURIComponent(cityState)}`;
+    const offerupUrl = `https://offerup.com/search/?q=${encodeURIComponent(query)}`;
     await safeGoto(page, offerupUrl);
-    await page.waitForSelector('li[data-testid="item-tile"]', { timeout: 60000 });
+    await page.waitForSelector('a[data-qa-id="post-link"]', { timeout: 60000 });
     await autoScroll(page);
 
     const data = await page.evaluate(() => {
       const results = [];
-      const items = document.querySelectorAll('li[data-testid="item-tile"]');
+      const items = document.querySelectorAll('a[data-qa-id="post-link"]');
       items.forEach(item => {
-        const title = item.querySelector('p[data-testid="item-title"]')?.innerText || '';
-        const price = item.querySelector('span[data-testid="item-price"]')?.innerText || '';
-        const url = item.querySelector('a')?.href || '';
+        const title = item.querySelector('p')?.innerText || '';
+        const price = item.querySelector('span')?.innerText || '';
+        const url = item.href || '';
         const image = item.querySelector('img')?.src || '';
-        const location = item.querySelector('p[data-testid="item-location"]')?.innerText || '';
+        const location = item.innerText.toLowerCase();
 
         if (title && price && url) {
           results.push({
             title,
             price,
-            url: `https://offerup.com${url}`,
+            url,
             image,
             location,
           });
@@ -141,8 +152,7 @@ const scrapeMercari = async (query, cityState) => {
   const listings = [];
   const browser = await launchBrowser();
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36');
-  await page.setViewport({ width: 1280, height: 800 });
+  await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A5341f Safari/604.1');
 
   try {
     const mercariUrl = `https://www.mercari.com/search/?keyword=${encodeURIComponent(query)}`;
