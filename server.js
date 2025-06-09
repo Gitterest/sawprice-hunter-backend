@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -7,8 +6,12 @@ const scraperRoutes = require('./routes/scraper.routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middlewares
-app.use(cors());
+const corsOptions = {
+  origin: 'https://chainsaw-price-hunter-production.up.railway.app',
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
