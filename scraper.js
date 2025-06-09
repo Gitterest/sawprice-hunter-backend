@@ -1,66 +1,85 @@
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteer.use(StealthPlugin());
 
-const waitFor = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-const autoScroll = async (page) => {
-  await page.evaluate(async () => {
-    await new Promise((resolve) => {
-      let totalHeight = 0;
-      const distance = 100;
-      const timer = setInterval(() => {
-        window.scrollBy(0, distance);
-        totalHeight += distance;
-        if (totalHeight >= document.body.scrollHeight) {
-          clearInterval(timer);
-          resolve();
-        }
-      }, 200);
-    });
-  });
-};
+const puppeteer = require('puppeteer');
 
 async function scrapeFacebookMarketplace() {
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  const listings = [];
+
   try {
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-    const page = await browser.newPage();
-    await page.goto("https://www.facebook.com/marketplace/");
-    await autoScroll(page);
-    // scraping logic
+    const url = 'https://www.facebook.com/marketplace/';
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(5000);
+
+    const articles = await page.$$('[role="article"]');
+    for (let card of articles.slice(0, 5)) {
+      const title = await card.$eval('span', el => el.innerText).catch(() => '');
+      const image = await card.$eval('img', el => el.src).catch(() => '');
+      const url = await card.$eval('a', a => a.href).catch(() => '');
+
+      listings.push({ title, image, url, source: 'Facebook' });
+    }
+  } catch (error) {
+    console.error('Facebook scraping failed:', error.message);
+  } finally {
     await browser.close();
-    return { listings: [] }; // Placeholder
-  } catch (err) {
-    console.error("Facebook scrape error:", err);
-    return [];
   }
+
+  return { listings };
 }
 
 async function scrapeOfferUp() {
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  const listings = [];
+
   try {
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-    const page = await browser.newPage();
-    await page.goto("https://offerup.com/");
-    await autoScroll(page);
+    await page.goto('https://offerup.com/search/?q=chainsaw', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('div.Item', { timeout: 8000 });
+
+    const items = await page.$$('div.Item');
+    for (let card of items.slice(0, 5)) {
+      const title = await card.$eval('.ItemTitle', el => el.innerText).catch(() => '');
+      const price = await card.$eval('.ItemPrice', el => el.innerText).catch(() => '');
+      const image = await card.$eval('img', el => el.src).catch(() => '');
+      const url = await card.$eval('a', a => 'https://offerup.com' + a.getAttribute('href')).catch(() => '');
+
+      listings.push({ title, price, image, url, source: 'OfferUp' });
+    }
+  } catch (error) {
+    console.error('OfferUp scraping failed:', error.message);
+  } finally {
     await browser.close();
-    return { listings: [] };
-  } catch (err) {
-    console.error("OfferUp scrape error:", err);
-    return [];
   }
+
+  return { listings };
 }
 
 async function scrapeMercari() {
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  const listings = [];
+
   try {
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-    const page = await browser.newPage();
-    await page.goto("https://www.mercari.com/");
-    await autoScroll(page);
+    await page.goto('https://www.mercari.com/search/?keyword=chainsaw', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('li[data-testid="item-cell"]', { timeout: 8000 });
+
+    const cards = await page.$$('li[data-testid="item-cell"]');
+    for (let card of cards.slice(0, 5)) {
+      const title = await card.$eval('[data-testid="item-title"]', el => el.innerText).catch(() => '');
+      const price = await card.$eval('[data-testid="item-price"]', el => el.innerText).catch(() => '');
+      const image = await card.$eval('img', img => img.src).catch(() => '');
+      const url = await card.$eval('a', a => 'https://www.mercari.com' + a.getAttribute('href')).catch(() => '');
+
+      listings.push({ title, price, image, url, source: 'Mercari' });
+    }
+  } catch (error) {
+    console.error('Mercari scraping failed:', error.message);
+  } finally {
     await browser.close();
-    return { listings: [] };
-  } catch (err) {
-    console.error("Mercari scrape error:", err);
-    return [];
   }
+
+  return { listings };
 }
 
 module.exports = {
