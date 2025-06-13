@@ -9,21 +9,29 @@ const {
 // GET /api/scraper/all — scrape all sources without filters
 router.get('/all', async (req, res) => {
   try {
-    const results = await Promise.all([
+    const results = await Promise.allSettled([
       scrapeFacebookMarketplace(),
       scrapeOfferUp(),
       scrapeMercari()
     ]);
-    res.json({
-      listings: [
-        ...results[0].listings,
-        ...results[1].listings,
-        ...results[2].listings
-      ]
+
+    const listings = [];
+    results.forEach(r => {
+      if (r.status === 'fulfilled') {
+        listings.push(...r.value.listings);
+      } else {
+        console.error('❌ Scraper error:', r.reason);
+      }
     });
+
+    if (!listings.length) {
+      return res.status(500).json({ error: 'Scraping failed.' });
+    }
+
+    res.json({ listings });
   } catch (error) {
-    console.error("❌ Scraping error:", error);
-    res.status(500).json({ error: "Scraping failed." });
+    console.error('❌ Scraping error:', error);
+    res.status(500).json({ error: 'Scraping failed.' });
   }
 });
 
@@ -36,21 +44,29 @@ router.get('/prices', async (req, res) => {
   }
 
   try {
-    const results = await Promise.all([
-      scrapeFacebookMarketplace(),
-      scrapeOfferUp(),
-      scrapeMercari()
+    const results = await Promise.allSettled([
+      scrapeFacebookMarketplace(query),
+      scrapeOfferUp(query),
+      scrapeMercari(query)
     ]);
-    res.json({
-      listings: [
-        ...results[0].listings,
-        ...results[1].listings,
-        ...results[2].listings
-      ]
+
+    const listings = [];
+    results.forEach(r => {
+      if (r.status === 'fulfilled') {
+        listings.push(...r.value.listings);
+      } else {
+        console.error('❌ Scraper error:', r.reason);
+      }
     });
+
+    if (!listings.length) {
+      return res.status(500).json({ error: 'Scraping failed.' });
+    }
+
+    res.json({ listings });
   } catch (error) {
-    console.error("❌ Scraping error:", error);
-    res.status(500).json({ error: "Scraping failed." });
+    console.error('❌ Scraping error:', error);
+    res.status(500).json({ error: 'Scraping failed.' });
   }
 });
 
