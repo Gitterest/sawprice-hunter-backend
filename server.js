@@ -7,9 +7,11 @@ const scraperRoutes = require('./routes/scraper.routes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Allow overriding the frontend URL via env variable for local development
 const corsOptions = {
-  origin: 'https://chainsaw-price-hunter-production.up.railway.app',
-  credentials: true
+  origin: process.env.CLIENT_URL ||
+    'https://chainsaw-price-hunter-production.up.railway.app',
+  credentials: true,
 };
 
 app.use(cors(corsOptions));

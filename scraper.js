@@ -1,8 +1,13 @@
 
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+puppeteer.use(StealthPlugin());
+
+const launchOptions = { headless: 'new', args: ['--no-sandbox'] };
 
 async function scrapeFacebookMarketplace() {
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
   const listings = [];
 
@@ -15,9 +20,9 @@ async function scrapeFacebookMarketplace() {
     for (let card of articles.slice(0, 5)) {
       const title = await card.$eval('span', el => el.innerText).catch(() => '');
       const image = await card.$eval('img', el => el.src).catch(() => '');
-      const url = await card.$eval('a', a => a.href).catch(() => '');
+      const link = await card.$eval('a', a => a.href).catch(() => '');
 
-      listings.push({ title, image, url, source: 'Facebook' });
+      listings.push({ title, image, url: link, source: 'Facebook' });
     }
   } catch (error) {
     console.error('Facebook scraping failed:', error.message);
@@ -29,7 +34,7 @@ async function scrapeFacebookMarketplace() {
 }
 
 async function scrapeOfferUp() {
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
   const listings = [];
 
@@ -42,9 +47,9 @@ async function scrapeOfferUp() {
       const title = await card.$eval('.ItemTitle', el => el.innerText).catch(() => '');
       const price = await card.$eval('.ItemPrice', el => el.innerText).catch(() => '');
       const image = await card.$eval('img', el => el.src).catch(() => '');
-      const url = await card.$eval('a', a => 'https://offerup.com' + a.getAttribute('href')).catch(() => '');
+      const link = await card.$eval('a', a => 'https://offerup.com' + a.getAttribute('href')).catch(() => '');
 
-      listings.push({ title, price, image, url, source: 'OfferUp' });
+      listings.push({ title, price, image, url: link, source: 'OfferUp' });
     }
   } catch (error) {
     console.error('OfferUp scraping failed:', error.message);
@@ -56,7 +61,7 @@ async function scrapeOfferUp() {
 }
 
 async function scrapeMercari() {
-  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
   const listings = [];
 
@@ -69,9 +74,9 @@ async function scrapeMercari() {
       const title = await card.$eval('[data-testid="item-title"]', el => el.innerText).catch(() => '');
       const price = await card.$eval('[data-testid="item-price"]', el => el.innerText).catch(() => '');
       const image = await card.$eval('img', img => img.src).catch(() => '');
-      const url = await card.$eval('a', a => 'https://www.mercari.com' + a.getAttribute('href')).catch(() => '');
+      const link = await card.$eval('a', a => 'https://www.mercari.com' + a.getAttribute('href')).catch(() => '');
 
-      listings.push({ title, price, image, url, source: 'Mercari' });
+      listings.push({ title, price, image, url: link, source: 'Mercari' });
     }
   } catch (error) {
     console.error('Mercari scraping failed:', error.message);
