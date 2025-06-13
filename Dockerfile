@@ -1,5 +1,5 @@
 # Use Node base image
-FROM node:18
+FROM node:20
 
 # Install system dependencies for Puppeteer/Chrome
 RUN apt-get update && apt-get install -y \
