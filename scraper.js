@@ -4,15 +4,30 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 puppeteer.use(StealthPlugin());
 
-const launchOptions = { headless: 'new', args: ['--no-sandbox'] };
+const launchOptions = {
+  headless: 'new',
+  args: ['--no-sandbox', '--disable-setuid-sandbox']
+};
 
-async function scrapeFacebookMarketplace() {
+const userAgent =
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+async function launchStealthBrowser() {
   const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
+  await page.setUserAgent(userAgent);
+  return { browser, page };
+}
+
+async function scrapeFacebookMarketplace(query = 'chainsaw') {
+  let browser;
+  let page;
   const listings = [];
 
   try {
-    const url = 'https://www.facebook.com/marketplace/';
+    ({ browser, page } = await launchStealthBrowser());
+
+    const url = `https://www.facebook.com/marketplace/you/selling/search/?query=${encodeURIComponent(query)}`;
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(5000);
 
@@ -27,19 +42,22 @@ async function scrapeFacebookMarketplace() {
   } catch (error) {
     console.error('Facebook scraping failed:', error.message);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 
   return { listings };
 }
 
-async function scrapeOfferUp() {
-  const browser = await puppeteer.launch(launchOptions);
-  const page = await browser.newPage();
+async function scrapeOfferUp(query = 'chainsaw') {
+  let browser;
+  let page;
   const listings = [];
 
   try {
-    await page.goto('https://offerup.com/search/?q=chainsaw', { waitUntil: 'domcontentloaded' });
+    ({ browser, page } = await launchStealthBrowser());
+
+    const searchUrl = `https://offerup.com/search/?q=${encodeURIComponent(query)}`;
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('div.Item', { timeout: 8000 });
 
     const items = await page.$$('div.Item');
@@ -54,19 +72,22 @@ async function scrapeOfferUp() {
   } catch (error) {
     console.error('OfferUp scraping failed:', error.message);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 
   return { listings };
 }
 
-async function scrapeMercari() {
-  const browser = await puppeteer.launch(launchOptions);
-  const page = await browser.newPage();
+async function scrapeMercari(query = 'chainsaw') {
+  let browser;
+  let page;
   const listings = [];
 
   try {
-    await page.goto('https://www.mercari.com/search/?keyword=chainsaw', { waitUntil: 'domcontentloaded' });
+    ({ browser, page } = await launchStealthBrowser());
+
+    const searchUrl = `https://www.mercari.com/search/?keyword=${encodeURIComponent(query)}`;
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('li[data-testid="item-cell"]', { timeout: 8000 });
 
     const cards = await page.$$('li[data-testid="item-cell"]');
@@ -81,7 +102,7 @@ async function scrapeMercari() {
   } catch (error) {
     console.error('Mercari scraping failed:', error.message);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 
   return { listings };
